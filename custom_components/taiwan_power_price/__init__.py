@@ -21,5 +21,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
     """從 UI/整合設定."""
-    hass.async_add_entities([TaiwanPowerPriceSensor()])
+    sensor = TaiwanPowerPriceSensor()
+    hass.data["taiwan_power_price"] = sensor
+    hass.async_add_entities([sensor])
     return True

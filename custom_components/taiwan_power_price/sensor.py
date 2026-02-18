@@ -2,7 +2,7 @@
 from datetime import datetime, time
 import logging
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -35,11 +35,6 @@ PRICE_TABLE = {
     },
 }
 
-# 尖峰時間
-PEAK_HOURS_SUMMER = (time(9, 0), time(23, 59, 59))      # 09:00-24:00
-PEAK_HOURS_NON_SUMMER_MORNING = (time(6, 0), time(10, 59, 59))   # 06:00-11:00
-PEAK_HOURS_NON_SUMMER_AFTERNOON = (time(14, 0), time(23, 59, 59)) # 14:00-24:00
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -54,36 +49,24 @@ async def async_setup_entry(
 class TaiwanPowerPriceSensor(SensorEntity):
     """台電電價感測器."""
 
+    _attr_unique_id = "taiwan_power_price"
     _attr_name = "台電當前電價"
     _attr_native_unit_of_measurement = "元/度"
     _attr_icon = "mdi:lightning-bolt"
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self) -> None:
-        self._attr_unique_id = "taiwan_power_price"
+        self._attr_native_value = 0.0
 
-    @property
-    def native_value(self) -> float:
-        """取得當前電價."""
-        return self._calculate_price()
+    def update(self) -> None:
+        """更新資料."""
+        self._attr_native_value = self._calculate_price()
+        self._attr_extra_state_attributes = self._get_attributes()
 
-    @property
-    def extra_state_attributes(self) -> dict:
-        """額外屬性."""
-        now = datetime.now()
-        is_summer_now = is_summer(now)
-        is_holiday_now = is_holiday(now)
-        is_weekend = now.weekday() >= 5  # 5=Sat, 6=Sun
-        
-        price_type = self._get_price_type(now, is_summer_now, is_holiday_now, is_weekend)
-        
-        return {
-            "is_summer": is_summer_now,
-            "is_holiday": is_holiday_now,
-            "is_weekend": is_weekend,
-            "price_type": price_type,  # "peak" or "off_peak"
-            "period": "summer" if is_summer_now else "non_summer",
-            "current_time": now.strftime("%Y-%m-%d %H:%M:%S"),
-        }
+    async def async_update(self) -> None:
+        """非同步更新資料."""
+        self._attr_native_value = self._calculate_price()
+        self._attr_extra_state_attributes = self._get_attributes()
 
     def _calculate_price(self) -> float:
         """計算當前電價."""
@@ -101,26 +84,36 @@ class TaiwanPowerPriceSensor(SensorEntity):
 
     def _get_price_type(self, now: datetime, is_summer: bool, is_holiday: bool, is_weekend: bool) -> str:
         """判斷當前是尖峰還是離峰."""
-        # 週六日及離峰日全天都是離峰價
         if is_weekend or is_holiday:
             return "off_peak"
 
         current_time = now.time()
 
         if is_summer:
-            # 夏月: 尖峰 09:00-24:00, 離峰 00:00-09:00
             if current_time >= time(9, 0):
                 return "peak"
             else:
                 return "off_peak"
         else:
-            # 非夏月: 尖峰 06:00-11:00, 14:00-24:00
             if (time(6, 0) <= current_time <= time(10, 59, 59)) or (current_time >= time(14, 0)):
                 return "peak"
             else:
                 return "off_peak"
 
-    async def async_update(self) -> None:
-        """更新資料."""
-        # 本地資料，無需 API 呼叫
-        pass
+    def _get_attributes(self) -> dict:
+        """取得屬性."""
+        now = datetime.now()
+        is_summer_now = is_summer(now)
+        is_holiday_now = is_holiday(now)
+        is_weekend = now.weekday() >= 5
+        
+        price_type = self._get_price_type(now, is_summer_now, is_holiday_now, is_weekend)
+        
+        return {
+            "is_summer": is_summer_now,
+            "is_holiday": is_holiday_now,
+            "is_weekend": is_weekend,
+            "price_type": price_type,
+            "period": "summer" if is_summer_now else "non_summer",
+            "current_time": now.strftime("%Y-%m-%d %H:%M:%S"),
+        }
