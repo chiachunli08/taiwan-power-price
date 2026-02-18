@@ -1,0 +1,13 @@
+{
+  "domain": "taiwan_power_price",
+  "name": "台電兩段式時間電價",
+  "version": "1.0.0",
+  "documentation": "https://github.com/yourname/taiwan-power-price",
+  "issue_tracker": "https://github.com/yourname/taiwan-power-price/issues",
+  "codeowners": ["@yourname"],
+  "dependencies": [],
+  "config_flow": true,
+  "requirements": ["lunardate>=0.2.0"],
+  "integration_type": "sensor",
+  "iot_class": "local_polling"
+}

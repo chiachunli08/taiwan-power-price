@@ -1,0 +1,7 @@
+{
+  "domains": ["sensor"],
+  "name": "台電兩段式時間電價",
+  "country": "TW",
+  "maintainer": "@yourname",
+  "homeassistant": "2024.1.0"
+}

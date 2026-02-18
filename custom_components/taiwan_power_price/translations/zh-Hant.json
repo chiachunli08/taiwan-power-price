@@ -1,0 +1,19 @@
+{
+  "config": {
+    "title": "台電兩段式時間電價",
+    "step": {
+      "user": {
+        "title": "台電兩段式時間電價",
+        "description": "建立台電電價感測器"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "選項",
+        "description": "設定選項"
+      }
+    }
+  }
+}
