@@ -2,9 +2,6 @@
 from datetime import datetime, time
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
 
 from .holiday import is_holiday, is_summer
 
@@ -31,15 +28,6 @@ PRICE_TABLE = {
         },
     },
 }
-
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """設定整合."""
-    async_add_entities([TaiwanPowerPriceSensor()])
 
 
 class TaiwanPowerPriceSensor(SensorEntity):
