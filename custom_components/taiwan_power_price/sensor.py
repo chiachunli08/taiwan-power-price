@@ -2,8 +2,6 @@
 from datetime import datetime, time
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .holiday import is_holiday, is_summer
 
@@ -20,16 +18,6 @@ PRICE_TABLE = {
 }
 
 
-def setup_platform(
-    hass: HomeAssistant,
-    config: dict,
-    add_entities: AddEntitiesCallback,
-    discovery_info=None,
-) -> None:
-    """設定感測器."""
-    add_entities([TaiwanPowerPriceSensor()])
-
-
 class TaiwanPowerPriceSensor(SensorEntity):
     """台電電價感測器."""
 
@@ -38,13 +26,15 @@ class TaiwanPowerPriceSensor(SensorEntity):
         self._attr_name = "台電當前電價"
         self._attr_native_unit_of_measurement = "元/度"
         self._attr_icon = "mdi:lightning-bolt"
-        self._attr_native_value = 0.0
 
-    def update(self) -> None:
-        """更新."""
+    @property
+    def native_value(self) -> float:
+        return _calculate_price(datetime.now())
+
+    @property
+    def extra_state_attributes(self) -> dict:
         now = datetime.now()
-        self._attr_native_value = _calculate_price(now)
-        self._attr_extra_state_attributes = {
+        return {
             "is_summer": is_summer(now),
             "is_holiday": is_holiday(now),
             "is_weekend": now.weekday() >= 5,
