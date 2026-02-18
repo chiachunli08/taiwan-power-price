@@ -1,4 +1,6 @@
 """台電兩段式時間電價感測器."""
+from datetime import datetime, time
+
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -21,9 +23,20 @@ PRICE_TABLE = {
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({})
 
 
-def setup_platform(hass: HomeAssistant, config: dict, add_entities: AddEntitiesCallback, discovery_info=None):
+def setup(hass: HomeAssistant, config: dict) -> bool:
     """傳統方式設定感測器."""
-    add_entities([TaiwanPowerPriceSensor()])
+    hass.helpers.discovery.load_platform("sensor", "taiwan_power_price", {}, config)
+    return True
+
+
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: dict,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info=None,
+) -> None:
+    """非同步設定感測器."""
+    async_add_entities([TaiwanPowerPriceSensor()])
 
 
 class TaiwanPowerPriceSensor(SensorEntity):
@@ -37,12 +50,10 @@ class TaiwanPowerPriceSensor(SensorEntity):
 
     @property
     def native_value(self) -> float:
-        from datetime import datetime
         return self._calculate_price(datetime.now())
 
     @property
     def extra_state_attributes(self) -> dict:
-        from datetime import datetime
         now = datetime.now()
         is_summer_now = is_summer(now)
         is_holiday_now = is_holiday(now)
@@ -70,7 +81,6 @@ class TaiwanPowerPriceSensor(SensorEntity):
         return PRICE_TABLE[season][day_type][price_type]
 
     def _get_price_type(self, now, is_summer: bool, is_holiday: bool, is_weekend: bool) -> str:
-        from datetime import time
         if is_weekend or is_holiday:
             return "off_peak"
 
