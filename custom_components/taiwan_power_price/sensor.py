@@ -1,9 +1,8 @@
 """台電兩段式時間電價感測器."""
 from datetime import datetime, time
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import voluptuous as vol
 
 from .holiday import is_holiday, is_summer
@@ -20,75 +19,69 @@ PRICE_TABLE = {
     },
 }
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({})
-
 
 def setup(hass: HomeAssistant, config: dict) -> bool:
-    """傳統方式設定感測器."""
-    hass.helpers.discovery.load_platform("sensor", "taiwan_power_price", {}, config)
-    return True
-
-
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: dict,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info=None,
-) -> None:
-    """非同步設定感測器."""
-    async_add_entities([TaiwanPowerPriceSensor()])
-
-
-class TaiwanPowerPriceSensor(SensorEntity):
-    """台電電價感測器."""
-
-    def __init__(self) -> None:
-        self._attr_unique_id = "taiwan_power_price"
-        self._attr_name = "台電當前電價"
-        self._attr_native_unit_of_measurement = "元/度"
-        self._attr_icon = "mdi:lightning-bolt"
-
-    @property
-    def native_value(self) -> float:
-        return self._calculate_price(datetime.now())
-
-    @property
-    def extra_state_attributes(self) -> dict:
+    """設定感測器."""
+    hass.states.set("sensor.taiwan_power_price", 0, {
+        "unit_of_measurement": "元/度",
+        "friendly_name": "台電當前電價",
+        "icon": "mdi:lightning-bolt",
+    })
+    
+    def update_price():
+        """更新電價."""
         now = datetime.now()
+        price = _calculate_price(now)
         is_summer_now = is_summer(now)
         is_holiday_now = is_holiday(now)
         is_weekend = now.weekday() >= 5
-        price_type = self._get_price_type(now, is_summer_now, is_holiday_now, is_weekend)
+        price_type = _get_price_type(now, is_summer_now, is_holiday_now, is_weekend)
         
-        return {
+        hass.states.set("sensor.taiwan_power_price", price, {
+            "unit_of_measurement": "元/度",
+            "friendly_name": "台電當前電價",
+            "icon": "mdi:lightning-bolt",
             "is_summer": is_summer_now,
             "is_holiday": is_holiday_now,
             "is_weekend": is_weekend,
             "price_type": price_type,
             "period": "summer" if is_summer_now else "non_summer",
             "current_time": now.strftime("%Y-%m-%d %H:%M:%S"),
-        }
+        })
+    
+    # 定時更新
+    import homeassistant.helpers.event as event
+    event.track_time_interval(hass, update_price, interval=60)
+    
+    # 初始更新
+    update_price()
+    
+    return True
 
-    def _calculate_price(self, now) -> float:
-        is_summer_now = is_summer(now)
-        is_holiday_now = is_holiday(now)
-        is_weekend = now.weekday() >= 5 or is_holiday_now
 
-        season = "summer" if is_summer_now else "non_summer"
-        day_type = "weekend" if is_weekend else "weekday"
-        price_type = self._get_price_type(now, is_summer_now, is_holiday_now, is_weekend)
+def _calculate_price(now) -> float:
+    """計算電價."""
+    is_summer_now = is_summer(now)
+    is_holiday_now = is_holiday(now)
+    is_weekend = now.weekday() >= 5 or is_holiday_now
 
-        return PRICE_TABLE[season][day_type][price_type]
+    season = "summer" if is_summer_now else "non_summer"
+    day_type = "weekend" if is_weekend else "weekday"
+    price_type = _get_price_type(now, is_summer_now, is_holiday_now, is_weekend)
 
-    def _get_price_type(self, now, is_summer: bool, is_holiday: bool, is_weekend: bool) -> str:
-        if is_weekend or is_holiday:
-            return "off_peak"
+    return PRICE_TABLE[season][day_type][price_type]
 
-        current_time = now.time()
 
-        if is_summer:
-            return "peak" if current_time >= time(9, 0) else "off_peak"
-        else:
-            if (time(6, 0) <= current_time <= time(10, 59, 59)) or (current_time >= time(14, 0)):
-                return "peak"
-            return "off_peak"
+def _get_price_type(now, is_summer: bool, is_holiday: bool, is_weekend: bool) -> str:
+    """判斷尖峰/離峰."""
+    if is_weekend or is_holiday:
+        return "off_peak"
+
+    current_time = now.time()
+
+    if is_summer:
+        return "peak" if current_time >= time(9, 0) else "off_peak"
+    else:
+        if (time(6, 0) <= current_time <= time(10, 59, 59)) or (current_time >= time(14, 0)):
+            return "peak"
+        return "off_peak"
