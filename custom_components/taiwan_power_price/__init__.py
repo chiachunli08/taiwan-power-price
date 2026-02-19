@@ -1,4 +1,5 @@
 """台電兩段式時間電價."""
+from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.event as event
@@ -34,6 +35,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     update_state()
     
     # 定時更新（每分鐘）
-    event.async_track_time_interval(hass, update_state, interval=60)
+    event.async_track_time_interval(hass, update_state, interval=timedelta(minutes=1))
     
     return True
