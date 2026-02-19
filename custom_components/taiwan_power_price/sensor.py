@@ -44,7 +44,7 @@ class TaiwanPowerPriceSensor(SensorEntity):
     def __init__(self) -> None:
         self._attr_unique_id = "taiwan_power_price"
         self._attr_name = "台電當前電價"
-        self._attr_native_unit_of_measurement = "元/度"
+        self._attr_native_unit_of_measurement = "TWD/kWh"
         self._attr_icon = "mdi:lightning-bolt"
 
     def update(self) -> None:
