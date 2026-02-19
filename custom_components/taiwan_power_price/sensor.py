@@ -1,7 +1,11 @@
 """台電兩段式時間電價感測器."""
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 
 from .holiday import is_holiday, is_summer
 
@@ -18,6 +22,22 @@ PRICE_TABLE = {
 }
 
 
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """設定感測器實體."""
+    sensor = TaiwanPowerPriceSensor()
+    async_add_entities([sensor])
+
+    @callback
+    def _update(now=None):
+        sensor.async_schedule_update_ha_state(True)
+
+    async_track_time_interval(hass, _update, timedelta(minutes=1))
+
+
 class TaiwanPowerPriceSensor(SensorEntity):
     """台電電價感測器."""
 
@@ -27,9 +47,9 @@ class TaiwanPowerPriceSensor(SensorEntity):
         self._attr_native_unit_of_measurement = "元/度"
         self._attr_icon = "mdi:lightning-bolt"
 
-    @property
-    def native_value(self) -> float:
-        return _calculate_price(datetime.now())
+    def update(self) -> None:
+        """更新感測器狀態."""
+        self._attr_native_value = _calculate_price(datetime.now())
 
     @property
     def extra_state_attributes(self) -> dict:
