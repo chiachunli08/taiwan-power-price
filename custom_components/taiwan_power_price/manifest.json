@@ -7,5 +7,5 @@
   "codeowners": ["@chiachunli08"],
   "dependencies": [],
   "config_flow": true,
-  "requirements": ["lunardate>=0.2.0"]
+  "requirements": ["lunar_python>=1.0.0"]
 }

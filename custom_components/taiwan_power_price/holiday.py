@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Tuple
 
 try:
-    from lunardate import LunarDate
+    from lunar_python import Lunar
 
     HAS_LUNAR = True
 except ImportError:
@@ -26,7 +26,7 @@ def is_holiday(dt: datetime) -> bool:
     lunar_date = None
     if HAS_LUNAR:
         try:
-            lunar_date = LunarDate.fromSolarDate(dt.year, dt.month, dt.day)
+            lunar_date = Lunar.fromDate(datetime(dt.year, dt.month, dt.day))
         except Exception:
             pass
 
@@ -87,8 +87,8 @@ def _is_lunar_holiday(lunar_date) -> bool:
     if not lunar_date:
         return False
 
-    month = lunar_date.month
-    day = lunar_date.day
+    month = lunar_date.getMonth()
+    day = lunar_date.getDay()
 
     # 春節: 農曆正月初一至初五 (除夕也已包含)
     # 春節假期通常是除夕到初五
@@ -112,9 +112,10 @@ def is_lunar_new_year_eve(dt: datetime) -> bool:
         return False
 
     try:
-        lunar_date = LunarDate.fromSolarDate(dt.year, dt.month, dt.day)
-        # 除夕是農曆12月最後一天
-        return lunar_date.month == 12 and lunar_date.isLeapMonth == False
+        lunar_date = Lunar.fromDate(datetime(dt.year, dt.month, dt.day))
+        # 除夕是農曆12月最後一天，且非閏月
+        month = lunar_date.getMonth()
+        return month == 12 and month > 0
     except Exception:
         return False
 
