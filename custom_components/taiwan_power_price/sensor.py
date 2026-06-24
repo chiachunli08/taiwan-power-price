@@ -5,7 +5,8 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_point_in_time
+import homeassistant.util.dt as dt_util
 
 from .holiday import is_holiday, is_summer
 
@@ -29,13 +30,36 @@ async def async_setup_entry(
 ) -> None:
     """設定感測器實體."""
     sensor = TaiwanPowerPriceSensor()
-    async_add_entities([sensor])
+    async_add_entities([sensor], True)
+
+    remove_scheduled_update = None
+
+    @callback
+    def _schedule_next_update(now: datetime) -> None:
+        nonlocal remove_scheduled_update
+
+        if remove_scheduled_update is not None:
+            remove_scheduled_update()
+
+        remove_scheduled_update = async_track_point_in_time(
+            hass,
+            _update,
+            _get_next_update_time(now),
+        )
 
     @callback
     def _update(now=None):
         sensor.async_schedule_update_ha_state(True)
+        _schedule_next_update(dt_util.now())
 
-    async_track_time_interval(hass, _update, timedelta(minutes=1))
+    _schedule_next_update(dt_util.now())
+
+    @callback
+    def _remove_scheduled_update() -> None:
+        if remove_scheduled_update is not None:
+            remove_scheduled_update()
+
+    entry.async_on_unload(_remove_scheduled_update)
 
 
 class TaiwanPowerPriceSensor(SensorEntity):
@@ -49,11 +73,11 @@ class TaiwanPowerPriceSensor(SensorEntity):
 
     def update(self) -> None:
         """更新感測器狀態."""
-        self._attr_native_value = _calculate_price(datetime.now())
+        self._attr_native_value = _calculate_price(dt_util.now())
 
     @property
     def extra_state_attributes(self) -> dict:
-        now = datetime.now()
+        now = dt_util.now()
         return {
             "is_summer": is_summer(now),
             "is_holiday": is_holiday(now),
@@ -94,3 +118,28 @@ def _get_price_type(now) -> str:
         if (time(6, 0) <= current_time <= time(10, 59, 59)) or (current_time >= time(14, 0)):
             return "peak"
         return "off_peak"
+
+
+def _get_next_update_time(now: datetime) -> datetime:
+    """取得下一個電價或日期可能變更的時間點."""
+    midnight = (now + timedelta(days=1)).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    candidates = [midnight]
+
+    if now.weekday() < 5 and not is_holiday(now):
+        transition_times = [time(9, 0)] if is_summer(now) else [time(6, 0), time(11, 0), time(14, 0)]
+        candidates.extend(
+            now.replace(
+                hour=transition_time.hour,
+                minute=transition_time.minute,
+                second=0,
+                microsecond=0,
+            )
+            for transition_time in transition_times
+        )
+
+    return min(candidate for candidate in candidates if candidate > now)

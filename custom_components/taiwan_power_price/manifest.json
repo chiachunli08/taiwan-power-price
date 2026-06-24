@@ -1,7 +1,7 @@
 {
   "domain": "taiwan_power_price",
   "name": "台電兩段式時間電價",
-  "version": "1.2.0",
+  "version": "1.3.2",
   "documentation": "https://github.com/chiachunli08/taiwan-power-price",
   "issue_tracker": "https://github.com/chiachunli08/taiwan-power-price/issues",
   "codeowners": ["@chiachunli08"],
